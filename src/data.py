@@ -31,7 +31,6 @@ class DataCollector:
         self.logger.info(f"Saving {symbol}_{timeframe}...")
         candles.to_csv(f"{directory}/{symbol}_{timeframe}.csv", index=True)
 
-
     def load_candles_from_file(self, exchange, symbol, timeframe):
         filename = (
             f"data/exchange/{exchange}/{symbol.replace('/', '_')}_{timeframe}.csv"
@@ -42,7 +41,7 @@ class DataCollector:
             df['dates'] = pd.to_datetime(df['dates'])
             return df
         else:
-            # TODO: Make columns use self.indicators to append those to this list
+            # TODO: Make columns use self.indicators to apply the users specified TA features or use this as default
             columns = ["dates", "opens", "highs", "lows", "closes", "volumes", "sma_5", "sma_20", "ema_12", "ema_26", "macd", "rsi"]
             return pd.DataFrame(columns=columns)
     
@@ -137,7 +136,7 @@ class DataCollector:
         updated_candles = self.calculate_ta(candles)
 
         # Clean the data
-        updated_candles = self.clean(updated_candles)
+        # updated_candles = self.clean(updated_candles)
 
         # Save candles with technical indicators
         self.save_candles_to_file(exchange, symbol, timeframe, updated_candles)
@@ -158,12 +157,12 @@ class DataCollector:
         data.set_index('dates', inplace=True)
 
         # create technical indicators
-        data['sma_5'] = data['closes'].rolling(window=5).mean()
-        data['sma_20'] = data['closes'].rolling(window=20).mean()
-        data['ema_12'] = data['closes'].ewm(span=12, adjust=False).mean()
-        data['ema_26'] = data['closes'].ewm(span=26, adjust=False).mean()
-        data['macd'] = data['ema_12'] - data['ema_26']
-        data['rsi'] = ta.rsi(data['closes'], timeperiod=14)
+        data['sma_5'] = data['closes'].rolling(window=5).mean().round(3)
+        data['sma_20'] = data['closes'].rolling(window=20).mean().round(3)
+        data['ema_12'] = data['closes'].ewm(span=12, adjust=False).mean().round(3)
+        data['ema_26'] = data['closes'].ewm(span=26, adjust=False).mean().round(3)
+        data['macd'] = (data['ema_12'] - data['ema_26']).round(3)
+        data['rsi'] = ta.rsi(data['closes'], timeperiod=14).round(3)
 
         return data
 
@@ -183,10 +182,14 @@ class DataCollector:
         return candles
 
 exchanges = ['coinbasepro']
-symbols = ['BTC/USD]']
+symbols = ['BTC/USD']
 timeframe = '1d'
 collector = DataCollector(exchanges, symbols, timeframe)
 
 loop = asyncio.get_event_loop()
 data = loop.run_until_complete(collector.fetch_candles(exchanges, symbols, timeframe, "2017-01-01 00:00:00", 1000, True))
 print(data)
+
+# btc = pd.read_csv("data/exchange/coinbasepro/BTC_USD_1d.csv")
+# btc.columns = ["dates","opens","highs","lows","closes","volumes"]
+
