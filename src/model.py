@@ -1,15 +1,23 @@
+import sys
 import numpy as np
 import torch
 import torch.nn as nn
 import pandas as pd
 import torch.optim as optim
+import plotly.graph_objs as go
 from torch.utils.data import TensorDataset, DataLoader
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+
 
 # Normalize the data
 def normalize(data):
     scaler = MinMaxScaler(feature_range=(-1, 1))
-    return scaler.fit_transform(data)
+    return scaler.fit_transform(data), scaler
+
+# Denormalize the data
+def denormalize(data, scaler):
+    return scaler.inverse_transform(data.reshape(-1, 1)).flatten()
 
 # Create sliding window dataset
 def create_sliding_window_dataset(data, window_size):
@@ -58,12 +66,12 @@ class LSTMModel(nn.Module):
 
 
 
-
 data = pd.read_csv("data/exchange/coinbasepro/BTC_USD_1d.csv")
 data = data.drop(columns=['dates'])  # Drop the 'dates' column
 data.dropna(inplace=True)
 data = data.values  # Convert DataFrame to NumPy array
-data = normalize(data)  # Normalize the data
+# Normalize the data
+data, scaler = normalize(data)
 
 window_size = 30
 X_train, y_train, X_val, y_val, X_test, y_test = split(data, window_size)
@@ -88,7 +96,8 @@ y_test_t = torch.tensor(y_test, dtype=torch.float32)
 # Create DataLoader for training, validation, and test data
 batch_size = 32
 train_dataset = TensorDataset(X_train_t, y_train_t)
-train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False)
+
 val_dataset = TensorDataset(X_val_t, y_val_t)
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 
@@ -100,7 +109,7 @@ criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 # Train the model
-num_epochs = 50
+num_epochs = 1
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = model.to(device)
@@ -144,8 +153,6 @@ with torch.no_grad():
 test_loss /= len(test_loader)
 print(f"Test Loss: {test_loss:.4f}")
 
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
-
 # Make predictions on the test set
 y_pred_list = []
 with torch.no_grad():
@@ -160,3 +167,4 @@ mae = mean_absolute_error(y_test, y_pred_list)
 r2 = r2_score(y_test, y_pred_list)
 
 print(f"MSE: {mse:.4f}, MAE: {mae:.4f}, R-squared: {r2:.4f}")
+print(y_pred_list, X_batch)
