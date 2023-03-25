@@ -109,12 +109,7 @@ criterion = nn.MSELoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 # Train the model
-num_epochs = 1
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = model.to(device)
-
-for epoch in range(num_epochs):
+def train(model, train_loader, criterion, optimizer, device):
     model.train()
     train_loss = 0
     for X_batch, y_batch in train_loader:
@@ -125,9 +120,10 @@ for epoch in range(num_epochs):
         loss.backward()
         optimizer.step()
         train_loss += loss.item()
-    
-    train_loss /= len(train_loader)
-    
+    return train_loss / len(train_loader)
+
+
+def validate(model, val_loader, criterion, device):
     model.eval()
     val_loss = 0
     with torch.no_grad():
@@ -136,21 +132,42 @@ for epoch in range(num_epochs):
             y_pred = model(X_batch)
             loss = criterion(y_pred.squeeze(), y_batch)
             val_loss += loss.item()
-    
-    val_loss /= len(val_loader)
+    return val_loss / len(val_loader)
 
+
+# Train the model
+num_epochs = 100
+early_stopping_patience = 10
+best_val_loss = float("inf")
+epochs_without_improvement = 0
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = model.to(device)
+
+for epoch in range(num_epochs):
+    train_loss = train(model, train_loader, criterion, optimizer, device)
+    val_loss = validate(model, val_loader, criterion, device)
     print(f"Epoch: {epoch+1}/{num_epochs}, Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
     
-model.eval()
-test_loss = 0
-with torch.no_grad():
-    for X_batch, y_batch in test_loader:
-        X_batch, y_batch = X_batch.to(device), y_batch.to(device)
-        y_pred = model(X_batch)
-        loss = criterion(y_pred.squeeze(), y_batch)
-        test_loss += loss.item()
+    # Early stopping
+    if val_loss < best_val_loss:
+        best_val_loss = val_loss
+        epochs_without_improvement = 0
+        torch.save(model.state_dict(), "best_model.pt")
+    else:
+        epochs_without_improvement += 1
+        
+    if epochs_without_improvement == early_stopping_patience:
+        print("Early stopping...")
+        break
 
-test_loss /= len(test_loader)
+# Load the best model
+best_model = LSTMModel(input_size, hidden_size, num_layers, output_size)
+best_model.load_state_dict(torch.load("best_model.pt"))
+best_model = best_model.to(device)
+
+# Evaluate the model on the test set
+test_loss = validate(best_model, test_loader, criterion, device)
 print(f"Test Loss: {test_loss:.4f}")
 
 # Make predictions on the test set
@@ -158,7 +175,7 @@ y_pred_list = []
 with torch.no_grad():
     for X_batch in test_loader:
         X_batch = X_batch[0].to(device)
-        y_pred = model(X_batch)
+        y_pred = best_model(X_batch)
         y_pred_list.extend(y_pred.squeeze().cpu().numpy())
 
 # Calculate evaluation metrics
