@@ -8,19 +8,26 @@ import plotly.graph_objs as go
 from torch.utils.data import TensorDataset, DataLoader
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+import logging
+
+# Set up logging
+logging.basicConfig(filename='model_logs.log', level=logging.DEBUG)
 
 
 # Normalize the data
 def normalize(data):
+    logging.info("Normalizing data.")
     scaler = MinMaxScaler(feature_range=(-1, 1))
     return scaler.fit_transform(data), scaler
 
 # Denormalize the data
 def denormalize(data, scaler):
+    logging.info("Denormalizing data.")
     return scaler.inverse_transform(data.reshape(-1, 1)).flatten()
 
 # Create sliding window dataset
 def create_sliding_window_dataset(data, window_size):
+    logging.info("Creating sliding window dataset.")
     X, y = [], []
     for i in range(window_size, len(data)):
         X.append(data[i - window_size:i, :])
@@ -29,6 +36,7 @@ def create_sliding_window_dataset(data, window_size):
 
 # Split the dataset into training and validation sets
 def split(data, window_size):
+    logging.info("Splitting dataset.")
     X, y = create_sliding_window_dataset(data, window_size)
     train_size = int(len(X) * 0.6)
     val_size = int(len(X) * 0.2)
@@ -41,7 +49,7 @@ def split(data, window_size):
 class LSTMModel(nn.Module):
     def __init__(self, input_size, hidden_size, num_layers, output_size) -> None:
         super(LSTMModel, self).__init__()
-        
+        logging.info("Initializing LSTM model.")
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         
@@ -110,6 +118,7 @@ optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 # Train the model
 def train(model, train_loader, criterion, optimizer, device):
+    logging.info("Training dataset.")
     model.train()
     train_loss = 0
     for X_batch, y_batch in train_loader:
@@ -124,6 +133,7 @@ def train(model, train_loader, criterion, optimizer, device):
 
 
 def validate(model, val_loader, criterion, device):
+    logging.info("Validating dataset.")
     model.eval()
     val_loss = 0
     with torch.no_grad():
