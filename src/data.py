@@ -17,14 +17,43 @@ class DataCollector:
         self.logger = logging.getLogger(__name__)
 
     def set_exchanges(self, exchanges):
+        """
+        The set_exchanges function changes the exchanges that are used in the strategy.
+                
+        
+        :param self: Represent the instance of the class
+        :param exchanges: Set the exchanges that are used in the backtest
+        :return: The value of self
+        :doc-author: Trelent
+        """
         self.logger.info(f"Changing exchanges from {self.exchanges} to {exchanges}.")
         self.exchanges = exchanges
     
     def set_symbols(self, symbols):
+        """
+        The set_symbols function changes the symbols that are being traded.
+                
+        
+        :param self: Represent the instance of the class
+        :param symbols: Change the symbols that are being used in the trading strategy
+        :return: Nothing
+        :doc-author: Trelent
+        """
         self.logger.info(f"Changing symbols from {self.symbols} to {symbols}.")
         self.symbols = symbols
         
     def save_candles_to_file(self, exchange, symbol, timeframe, candles: pd.DataFrame):
+        """
+        The save_candles_to_file function saves the candles to a file.
+        
+        :param self: Represent the instance of the class
+        :param exchange: Create the directory in which the data will be saved
+        :param symbol: Create the file name
+        :param timeframe: Determine the timeframe of the candle data
+        :param candles: pd.DataFrame: Pass a dataframe to the function
+        :return: A csv file of the candles dataframe
+        :doc-author: Trelent
+        """
         symbol = symbol.replace("/", "_")
         directory = f"data/exchange/{exchange}"
         os.makedirs(directory, exist_ok=True)
@@ -32,6 +61,18 @@ class DataCollector:
         candles.to_csv(f"{directory}/{symbol}_{timeframe}.csv", index=True)
 
     def load_candles_from_file(self, exchange, symbol, timeframe):
+        """
+        The load_candles_from_file function is used to load the candles from a file.
+            If the file exists, it will be loaded into a pandas dataframe and returned.
+            If not, an empty dataframe with columns specified by self.indicators will be created and returned.
+        
+        :param self: Bind the method to the object
+        :param exchange: Specify which exchange the data is being pulled from
+        :param symbol: Specify the symbol you want to get data for
+        :param timeframe: Determine the timeframe of the candles being loaded
+        :return: A dataframe
+        :doc-author: Trelent
+        """
         filename = (
             f"data/exchange/{exchange}/{symbol.replace('/', '_')}_{timeframe}.csv"
         )
@@ -153,6 +194,20 @@ class DataCollector:
         pass
     
     def calculate_ta(self, data):
+        """
+        The calculate_ta function adds technical analysis indicators to the dataframe.
+            The function takes in a dataframe and returns a new dataframe with the following columns:
+                - sma_5: Simple Moving Average of 5 periods.
+                - sma_20: Simple Moving Average of 20 periods.
+                - ema_12: Exponential Moving Average of 12 periods. 
+                - ema_26: Exponential Moving Average of 26 periods. 
+                - macd = (ema12-ema26).round(3) : MACD indicator, which is calculated by subtracting EMA26 from EMA
+        
+        :param self: Represent the instance of the class
+        :param data: Pass the dataframe to the function
+        :return: A dataframe with technical indicators added
+        :doc-author: Trelent
+        """
         self.logger.info(f"Adding technical analysis indicators.")
         data.set_index('dates', inplace=True)
 
@@ -167,6 +222,20 @@ class DataCollector:
         return data
 
     async def fetch_candles(self, exchanges: List[str], symbols: List[str], timeframe: str, since: str, limit: int, dataframe: bool, max_retries=3):
+        """
+        The fetch_candles function fetches candles for a list of symbols from a list of exchanges.
+        
+        :param self: Represent the instance of the class
+        :param exchanges: List[str]: Specify which exchanges to fetch data from
+        :param symbols: List[str]: Specify the symbols for which you want to fetch candles
+        :param timeframe: str: Specify the timeframe of the candles
+        :param since: str: Specify the start date of the candles
+        :param limit: int: Limit the amount of candles that are returned
+        :param dataframe: bool: Determine whether the data should be returned in a pandas dataframe or not
+        :param max_retries: Limit the number of times a request is retried if it fails
+        :return: A dictionary of candles
+        :doc-author: Trelent
+        """
         tasks = [
             self.fetch_candles_for_symbol(exchange, symbol, timeframe, since, limit, dataframe, max_retries)
             for exchange in exchanges
