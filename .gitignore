@@ -1,4 +1,8 @@
 data
 hidden
 venv
-src/__pycache__
+python/__pycache__
+node_modules
+javascript
+package-lock.json
+package.json

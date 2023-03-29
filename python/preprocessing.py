@@ -29,10 +29,20 @@ def normalize(data):
     scaler = MinMaxScaler(feature_range=(-1, 1))
     return scaler.fit_transform(data), scaler
 
-# Denormalize the data
 def denormalize(data, scaler):
+    """
+    The denormalize function takes in a dataset that has been normalized and the scaler object that was used
+    to normalize it. The function denormalizes the data using the scaler object and returns the denormalized data.
+    
+    :param data: Pass in the data that we want to denormalize
+    :param scaler: Pass in the scaler object that was used to normalize the data
+    :return: A numpy array of denormalized data
+    :doc-author: Trelent
+    """
     logging.info("Denormalizing data.")
-    return scaler.inverse_transform(data.reshape(-1, 1)).flatten()
+    new_scaler = MinMaxScaler(feature_range=(0, 1))
+    new_scaler.min_, new_scaler.scale_ = scaler.min_[3], scaler.scale_[3]
+    return new_scaler.inverse_transform(data.reshape(-1, 1)).flatten()
 
 # Create sliding window dataset
 def create_sliding_window_dataset(data, window_size):
@@ -54,7 +64,7 @@ def create_sliding_window_dataset(data, window_size):
     return np.array(X), np.array(y)
 
 # Split the dataset into training and validation sets
-def split(data, window_size):
+def split(X, y):
     """
     The split function takes in a dataset and a window size, and returns the training, validation,
     and test sets. The function first creates the sliding window dataset using create_sliding_window_dataset.
@@ -67,7 +77,6 @@ def split(data, window_size):
     :doc-author: Trelent
     """
     logging.info("Splitting dataset.")
-    X, y = create_sliding_window_dataset(data, window_size)
     train_size = int(len(X) * 0.6)
     val_size = int(len(X) * 0.2)
     X_train, y_train = X[:train_size], y[:train_size]

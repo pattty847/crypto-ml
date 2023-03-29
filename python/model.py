@@ -186,7 +186,7 @@ def prepare_training(model, learning_rate=0.001):
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = model.to(device)
-
+    logging.info(f"Using: {device}")
     return criterion, optimizer, device, model
 
 def train_model(model, train_loader, val_loader, criterion, optimizer, device, num_epochs, early_stopping_patience):
@@ -212,7 +212,7 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, device, n
     for epoch in range(num_epochs):
         train_loss = train(model, train_loader, criterion, optimizer, device)
         val_loss = validate(model, val_loader, criterion, device)
-        logging.info(f"Epoch: {epoch+1}/{num_epochs}, Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
+        print(f"Epoch: {epoch+1}/{num_epochs}, Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
         
         # Early stopping
         if val_loss < best_val_loss:
@@ -223,7 +223,7 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, device, n
             epochs_without_improvement += 1
             
         if epochs_without_improvement == early_stopping_patience:
-            logging.info("Early stopping...")
+            print("Early stopping...")
             break
 
 def main():
@@ -238,7 +238,8 @@ def main():
     original_data, scaled_data, scaler = load_data("data/exchange/coinbasepro/BTC_USD_1d.csv")
 
     window_size = 30
-    X_train, y_train, X_val, y_val, X_test, y_test = process.split(scaled_data, window_size)
+    X, y = process.create_sliding_window_dataset(scaled_data, window_size)
+    X_train, y_train, X_val, y_val, X_test, y_test = process.split(X, y)
 
     input_size = X_train.shape[2]
     hidden_size = 64
@@ -264,7 +265,7 @@ def main():
 
     # Evaluate the model on the test set
     test_loss = validate(best_model, test_loader, criterion, device)
-    logging.info(f"Test Loss: {test_loss:.4f}")
+    print(f"Test Loss: {test_loss:.4f}")
 
     # Make predictions on the test set
     y_pred_list = []
@@ -279,8 +280,18 @@ def main():
     mae = mean_absolute_error(y_test, y_pred_list)
     r2 = r2_score(y_test, y_pred_list)
 
-    logging.info(f"MSE: {mse:.4f}, MAE: {mae:.4f}, R-squared: {r2:.4f}")
+    print(f"MSE: {mse:.4f}, MAE: {mae:.4f}, R-squared: {r2:.4f}")
 
+    # Denormalize the test data and predicted data
+    y_test_denorm = process.denormalize(y_test, scaler)
+    y_pred_denorm = process.denormalize(np.array(y_pred_list), scaler)
+
+    # Plot the original and predicted close prices
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=np.arange(len(y_test_denorm)), y=y_test_denorm, name='Original Close Price'))
+    fig.add_trace(go.Scatter(x=np.arange(len(y_pred_denorm)), y=y_pred_denorm, name='Predicted Close Price'))
+    fig.update_layout(title='Original vs. Predicted Close Prices', xaxis_title='Time', yaxis_title='Price')
+    fig.show()
 
 if __name__ == "__main__":
     main()

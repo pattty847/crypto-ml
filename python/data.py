@@ -5,6 +5,7 @@ import ccxt.async_support as ccxt
 import pandas as pd
 import logging
 import asyncio
+import chart
 from log import setup_logging
 from typing import List
 
@@ -154,7 +155,7 @@ class DataCollector:
 
             if len(new_candle_batch):
                 last_time = new_candle_batch[-1][0] + timeframe_duration_in_seconds * 1000
-                self.logger.info(len(new_candle_batch), "candles from", api.iso8601(new_candle_batch[0][0]), "to", api.iso8601(new_candle_batch[-1][0]))
+                print(len(new_candle_batch), "candles from", api.iso8601(new_candle_batch[0][0]), "to", api.iso8601(new_candle_batch[-1][0]))
             else:
                 last_time = fetch_since + timedelta
                 self.logger.info("no candles")
@@ -252,13 +253,10 @@ class DataCollector:
 
 exchanges = ['coinbasepro']
 symbols = ['BTC/USD']
-timeframe = '1d'
+timeframe = '1m'
 collector = DataCollector(exchanges, symbols, timeframe)
 
 loop = asyncio.get_event_loop()
-data = loop.run_until_complete(collector.fetch_candles(exchanges, symbols, timeframe, "2017-01-01 00:00:00", 1000, True))
-print(data)
+data = loop.run_until_complete(collector.fetch_candles(exchanges, symbols, timeframe, "2023-03-20 00:00:00", 1000, True))
 
-# btc = pd.read_csv("data/exchange/coinbasepro/BTC_USD_1d.csv")
-# btc.columns = ["dates","opens","highs","lows","closes","volumes"]
-
+chart.plot(data['coinbasepro']['BTC/USD'])
