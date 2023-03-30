@@ -87,7 +87,7 @@ class DataCollector:
             columns = ["dates", "opens", "highs", "lows", "closes", "volumes", "sma_5", "sma_20", "ema_12", "ema_26", "macd", "rsi"]
             return pd.DataFrame(columns=columns)
     
-    async def fetch_candles_for_symbol(self, exchange, symbol, timeframe, since, limit, dataframe, max_retries):
+    async def fetch_candles_(self, exchange, symbol, timeframe, since, limit, dataframe, max_retries):
         """
         This asynchronous function fetches historical OHLCV (Open, High, Low, Close, Volume) candlestick data from 
         multiple cryptocurrency exchanges for specified symbols and timeframes. The data can be returned as a pandas 
@@ -187,13 +187,6 @@ class DataCollector:
         
         return (exchange, symbol, updated_candles)
     
-    def clean(self, candles):
-        # TODO: This function can clean missing candle values by pulling data from another exchange. 
-        date_range = pd.date_range(start=candles.index.min(), end=candles.index.max())
-
-    def timeframe_to_freq(self, timeframe):
-        pass
-    
     def calculate_ta(self, data):
         """
         The calculate_ta function adds technical analysis indicators to the dataframe.
@@ -222,7 +215,7 @@ class DataCollector:
 
         return data
 
-    async def fetch_candles(self, exchanges: List[str], symbols: List[str], timeframe: str, since: str, limit: int, dataframe: bool, max_retries=3):
+    async def fetch_candles_(self, exchanges: List[str], symbols: List[str], timeframe: str, since: str, limit: int, dataframe: bool, max_retries=3):
         """
         The fetch_candles function fetches candles for a list of symbols from a list of exchanges.
         
@@ -238,7 +231,7 @@ class DataCollector:
         :doc-author: Trelent
         """
         tasks = [
-            self.fetch_candles_for_symbol(exchange, symbol, timeframe, since, limit, dataframe, max_retries)
+            self.fetch_candles_(exchange, symbol, timeframe, since, limit, dataframe, max_retries)
             for exchange in exchanges
             for symbol in symbols
         ]
@@ -251,12 +244,113 @@ class DataCollector:
 
         return candles
 
-exchanges = ['coinbasepro']
-symbols = ['BTC/USD']
-timeframe = '1m'
-collector = DataCollector(exchanges, symbols, timeframe)
+# FETCH CANDLES CODE EXAMPLE:
+# exchanges = ['coinbasepro']
+# symbols = ['BTC/USD', "ETH/USD", "LTC/USD"]
+# timeframe = '1h'
+# collector = DataCollector(exchanges, symbols, timeframe)
 
-loop = asyncio.get_event_loop()
-data = loop.run_until_complete(collector.fetch_candles(exchanges, symbols, timeframe, "2023-03-20 00:00:00", 1000, True))
+# loop = asyncio.get_event_loop()
+# data = loop.run_until_complete(collector.fetch_candles_(exchanges, symbols, timeframe, "2023-03-20 00:00:00", 1000, True))
 
-chart.plot(data['coinbasepro']['BTC/USD'])
+# chart.plot(data['coinbasepro']['BTC/USD'])
+
+
+    # FETCH CANDLES - RETURN PERCENTAGE GAINS
+    async def fetch_percentage_change_vs_btc_(self, exchange, symbol, timeframe, lookback_minutes, max_retries):
+        api = getattr(ccxt, exchange)()
+        if not api.has['fetchOHLCV']:
+            self.logger.info(f"{exchange.upper()} does not have fetch OHLCV.")
+            return None
+
+        timeframe_duration_in_seconds = api.parse_timeframe(timeframe)
+        lookback_milliseconds = lookback_minutes * 60 * 1000
+        now = api.milliseconds()
+        since = now - (lookback_milliseconds + timeframe_duration_in_seconds * 1000)  # Add an extra candle duration
+
+        current_candle = None
+        past_candle = None
+        for num_retries in range(max_retries):
+            try:
+                current_candle = await api.fetch_ohlcv(symbol, timeframe, limit=1)
+                past_candle = await api.fetch_ohlcv(symbol, timeframe, since=since, limit=2)
+            except ccxt.ExchangeError as e:
+                print(e)
+                await asyncio.sleep(1)
+            if current_candle is not None and past_candle is not None:
+                break
+
+        if current_candle is None or past_candle is None:
+            await api.close()
+            return None
+
+        current_candle_df = pd.DataFrame(current_candle, columns=["dates", "opens", "highs", "lows", "closes", "volumes"])
+        current_candle_df["dates"] = pd.to_datetime(current_candle_df['dates'], unit='ms')
+
+        past_candle_df = pd.DataFrame(past_candle, columns=["dates", "opens", "highs", "lows", "closes", "volumes"])
+        past_candle_df["dates"] = pd.to_datetime(past_candle_df['dates'], unit='ms')
+
+        print(current_candle_df.to_string(index=False))
+        print(past_candle_df.to_string(index=False))
+
+        await api.close()
+
+        return (exchange, symbol, past_candle_df.iloc[-1:], current_candle_df)  # Return only the last past candle
+
+
+    async def fetch_percentage_change_vs_btc(self, exchange, symbols, timeframe, lookback_minutes, max_retries):
+        """
+        The fetch_percentage_change_vs_btc function fetches the percentage change of a symbol vs. BTC for a given timeframe and lookback period.
+        
+        :param self: Bind the method to an object
+        :param exchange: Determine which exchange to use
+        :param symbols: Specify which symbols to fetch data for
+        :param timeframe: Specify the timeframe of the data that is returned
+        :param lookback_minutes: Determine how far back in time to look for the percentage change
+        :param max_retries: Determine how many times the function will try to retrieve data from an exchange before giving up
+        :return: A list of dictionaries
+        :doc-author: Trelent
+        """
+        
+        async with getattr(ccxt, exchange)() as api:
+            available_symbols = set((await api.load_markets()).keys())
+            tasks = [self.fetch_percentage_change_vs_btc_(exchange, symbol, timeframe, lookback_minutes, max_retries) for symbol in symbols if symbol in available_symbols]
+            results = await asyncio.gather(*tasks)
+            return results
+
+
+# Replace 'binance' with the desired exchange, and add the symbols you want to track, including BTC
+exchange = 'coinbasepro'
+symbols = ['BTC/USDT', 'ETH/USDT', 'AAVE/USDT', 'ACH/USD', 'ATOM/USD', 'DOGE/USD']
+timeframe = '1h'
+lookback_minutes = 1000
+max_retries = 3
+collector = DataCollector(exchange, symbols, timeframe)
+
+latest_data = asyncio.run(collector.fetch_percentage_change_vs_btc(exchange, symbols, timeframe, lookback_minutes, max_retries))
+
+btc_past_price = None
+btc_current_price = None
+percentage_gains = {}
+
+
+for data in latest_data:
+    if not data:
+        continue
+    symbol = data[1]
+
+    past_close_price = data[2]['closes'].iloc[0]
+    current_close_price = data[3]['closes'].iloc[0]
+
+    if symbol == 'BTC/USDT':
+        btc_past_price = past_close_price
+        btc_current_price = current_close_price
+    else:
+        asset_percentage_gain = (current_close_price / past_close_price - 1) * 100
+        btc_percentage_gain = (btc_current_price / btc_past_price - 1) * 100
+        relative_percentage_gain = asset_percentage_gain - btc_percentage_gain
+
+        percentage_gains[symbol] = relative_percentage_gain
+
+       
+print(percentage_gains)
