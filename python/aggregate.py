@@ -23,7 +23,11 @@ async def watch_exchange(exchange_name, symbol, aggregated_data, lock):
                 trade_volume_usd = trade['amount'] * trade['price']
                 base_volume += trade_volume_base
                 usd_volume += trade_volume_usd
-                cvd += trade_volume_base if trade['side'] == 'buy' else -trade_volume_base
+                cvd += trade_volume_usd if trade['side'] == 'buy' else -trade_volume_usd
+                
+                # Update total volume across all exchanges
+                async with lock:
+                    aggregated_data['aggregated_volume'] += trade_volume_usd
 
             # Update and print the aggregated data
             async with lock:
@@ -41,7 +45,16 @@ async def watch_exchange(exchange_name, symbol, aggregated_data, lock):
     print(f"{exchange_name} closed.")
 
 def print_aggregated_data(aggregated_data):
+    # Print total volume across all exchanges
+    print("Total Volume Across All Exchanges:", aggregated_data['aggregated_volume'])
+    print()
+    
+    # Print data for individual exchanges
     for exchange_name, data in aggregated_data.items():
+        # Skip the total_volume key when printing individual exchange data
+        if exchange_name == 'aggregated_volume':
+            continue
+        
         print(f"Exchange: {exchange_name}")
         print("Base Volume:", data['base_volume'])
         print("USD Volume:", data['usd_volume'])
@@ -52,11 +65,11 @@ async def main():
     symbol = 'BTC/USDT'
     limit = None
     exchange_names = ['kucoin', 'coinbasepro', 'kraken']
-    aggregated_data = {}
+    aggregated_data = {"aggregated_volume":0.0}
     lock = asyncio.Lock()
 
     # Create a list of coroutines for watching each exchange
-    coroutines = [watch_exchange(exchange_name, symbol, limit, aggregated_data, lock) for exchange_name in exchange_names]
+    coroutines = [watch_exchange(exchange_name, symbol, aggregated_data, lock) for exchange_name in exchange_names]
 
     # Run the coroutines concurrently
     await asyncio.gather(*coroutines)

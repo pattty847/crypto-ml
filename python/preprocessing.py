@@ -17,14 +17,6 @@ def normalize(data):
     :return: The normalized data and the scaler object
     :doc-author: Trelent
     """
-    """
-    The normalize function takes in a numpy array of data and returns the normalized data.
-        The normalize function uses the MinMaxScaler from sklearn to scale all values between -0.5 and 0.5.
-    
-    :param data: Pass in the data to be normalized
-    :return: The normalized data and the scaler object
-    :doc-author: Trelent
-    """
     logging.info("Normalizing data.")
     scaler = MinMaxScaler(feature_range=(-1, 1))
     return scaler.fit_transform(data), scaler

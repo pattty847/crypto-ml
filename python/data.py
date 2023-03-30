@@ -212,10 +212,12 @@ class DataCollector:
         data['ema_26'] = data['closes'].ewm(span=26, adjust=False).mean().round(3)
         data['macd'] = (data['ema_12'] - data['ema_26']).round(3)
         data['rsi'] = ta.rsi(data['closes'], timeperiod=14).round(3)
+        data['bb_upper'], data['bb_middle'], data['bb_lower'] = ta.BBANDS(data['closes'], timeperiod=20)
+        data['stoch_k'], data['stoch_d'] = ta.STOCH(data['highs'], data['lows'], data['closes'], fastk_period=14, slowk_period=3, slowd_period=3)
 
         return data
 
-    async def fetch_candles_(self, exchanges: List[str], symbols: List[str], timeframe: str, since: str, limit: int, dataframe: bool, max_retries=3):
+    async def fetch_candles(self, exchanges: List[str], symbols: List[str], timeframe: str, since: str, limit: int, dataframe: bool, max_retries=3):
         """
         The fetch_candles function fetches candles for a list of symbols from a list of exchanges.
         
@@ -229,6 +231,17 @@ class DataCollector:
         :param max_retries: Limit the number of times a request is retried if it fails
         :return: A dictionary of candles
         :doc-author: Trelent
+
+        Example:
+            exchanges = ['coinbasepro']
+            symbols = ['BTC/USD', "ETH/USD", "LTC/USD"]
+            timeframe = '1h'
+            collector = DataCollector(exchanges, symbols, timeframe)
+
+            loop = asyncio.get_event_loop()
+            data = loop.run_until_complete(collector.fetch_candles(exchanges, symbols, timeframe, "2023-03-20 00:00:00", 1000, True))
+
+            chart.plot(data['coinbasepro']['BTC/USD'])
         """
         tasks = [
             self.fetch_candles_(exchange, symbol, timeframe, since, limit, dataframe, max_retries)
@@ -251,7 +264,7 @@ class DataCollector:
 # collector = DataCollector(exchanges, symbols, timeframe)
 
 # loop = asyncio.get_event_loop()
-# data = loop.run_until_complete(collector.fetch_candles_(exchanges, symbols, timeframe, "2023-03-20 00:00:00", 1000, True))
+# data = loop.run_until_complete(collector.fetch_candles(exchanges, symbols, timeframe, "2023-03-20 00:00:00", 1000, True))
 
 # chart.plot(data['coinbasepro']['BTC/USD'])
 
@@ -319,6 +332,18 @@ class DataCollector:
             return results
         
     def percentage_gains(self, latest_data):
+        """
+        The percentage_gains function takes in a list of tuples, where each tuple contains the following:
+            1. The exchange name (e.g., 'binance')
+            2. The symbol (e.g., 'BTC/USDT')
+            3. A pandas DataFrame containing the past data for that symbol on that exchange, with columns ['closes', 'opens'] and an index of timestamps from oldest to newest
+            4. A pandas DataFrame containing the current data for that symbol on that exchange, with columns ['closes', 'opens'] and an index of timestamps from oldest to
+        
+        :param self: Represent the instance of the class
+        :param latest_data: Pass the data from the get_latest_data function to this function
+        :return: A dict of the percentage gains for each asset
+        :doc-author: Trelent
+        """
         btc_past_price = None
         btc_current_price = None
         percentage_gains = {}
@@ -340,6 +365,10 @@ class DataCollector:
 
                 percentage_gains[symbol] = relative_percentage_gain
         return percentage_gains
+    
+    def current_daily_volume(self, exchanges, symbols):
+        daily_volume = {}
+        
 
 
 # # Replace 'binance' with the desired exchange, and add the symbols you want to track, including BTC
@@ -356,12 +385,3 @@ class DataCollector:
 
        
 # print(percentage_gains)
-
-async def a():
-    c = ccxt.coinbasepro()
-    c.fetch
-    with open("file.json", "w") as f:
-        json.dump((await c.load_markets()), f)
-        await c.close()
-
-asyncio.run(a())
