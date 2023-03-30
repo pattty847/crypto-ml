@@ -317,40 +317,51 @@ class DataCollector:
             tasks = [self.fetch_percentage_change_vs_btc_(exchange, symbol, timeframe, lookback_minutes, max_retries) for symbol in symbols if symbol in available_symbols]
             results = await asyncio.gather(*tasks)
             return results
+        
+    def percentage_gains(self, latest_data):
+        btc_past_price = None
+        btc_current_price = None
+        percentage_gains = {}
+        for data in latest_data:
+            if not data:
+                continue
+            symbol = data[1]
+
+            past_close_price = data[2]['closes'].iloc[0]
+            current_close_price = data[3]['closes'].iloc[0]
+
+            if symbol == 'BTC/USDT':
+                btc_past_price = past_close_price
+                btc_current_price = current_close_price
+            else:
+                asset_percentage_gain = (current_close_price / past_close_price - 1) * 100
+                btc_percentage_gain = (btc_current_price / btc_past_price - 1) * 100
+                relative_percentage_gain = asset_percentage_gain - btc_percentage_gain
+
+                percentage_gains[symbol] = relative_percentage_gain
+        return percentage_gains
 
 
-# Replace 'binance' with the desired exchange, and add the symbols you want to track, including BTC
-exchange = 'coinbasepro'
-symbols = ['BTC/USDT', 'ETH/USDT', 'AAVE/USDT', 'ACH/USD', 'ATOM/USD', 'DOGE/USD']
-timeframe = '1h'
-lookback_minutes = 1000
-max_retries = 3
-collector = DataCollector(exchange, symbols, timeframe)
+# # Replace 'binance' with the desired exchange, and add the symbols you want to track, including BTC
+# exchange = 'coinbasepro'
+# symbols = ['BTC/USDT', 'ETH/USDT', 'AAVE/USDT', 'ACH/USD', 'ATOM/USD', 'DOGE/USD']
+# timeframe = '1h'
+# lookback_minutes = 1000
+# max_retries = 3
+# collector = DataCollector(exchange, symbols, timeframe)
 
-latest_data = asyncio.run(collector.fetch_percentage_change_vs_btc(exchange, symbols, timeframe, lookback_minutes, max_retries))
+# latest_data = asyncio.run(collector.fetch_percentage_change_vs_btc(exchange, symbols, timeframe, lookback_minutes, max_retries))
 
-btc_past_price = None
-btc_current_price = None
-percentage_gains = {}
-
-
-for data in latest_data:
-    if not data:
-        continue
-    symbol = data[1]
-
-    past_close_price = data[2]['closes'].iloc[0]
-    current_close_price = data[3]['closes'].iloc[0]
-
-    if symbol == 'BTC/USDT':
-        btc_past_price = past_close_price
-        btc_current_price = current_close_price
-    else:
-        asset_percentage_gain = (current_close_price / past_close_price - 1) * 100
-        btc_percentage_gain = (btc_current_price / btc_past_price - 1) * 100
-        relative_percentage_gain = asset_percentage_gain - btc_percentage_gain
-
-        percentage_gains[symbol] = relative_percentage_gain
+# percentage_gains = collector.percentage_gains(latest_data)
 
        
-print(percentage_gains)
+# print(percentage_gains)
+
+async def a():
+    c = ccxt.coinbasepro()
+    c.fetch
+    with open("file.json", "w") as f:
+        json.dump((await c.load_markets()), f)
+        await c.close()
+
+asyncio.run(a())
