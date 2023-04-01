@@ -10,27 +10,40 @@ class Window:
         self.active_exchanges = []
         self.aggr = aggregate
         self.logger = logging.getLogger(__name__)
+        self.viewport_size = (dpg.get_viewport_client_width(), dpg.get_viewport_client_width())
+        self.logger.info(self.viewport_size)
 
-    def add_or_remove_exchange(self, sender, app_data, user_data):
-        before = self.active_exchanges.copy()
-        self.active_exchanges = [ex for ex in self.active_exchanges if ex != sender] if sender in self.active_exchanges else self.active_exchanges + [sender]
-        self.logger.info(f"Watched Exchanges - Before:{before} | After:{self.active_exchanges}")
+    def build(self):
+        self.logger.info("Building main window.")
+        with dpg.menu_bar(parent=self.tag):
+            dpg.add_menu_item(label="Demo", callback=demo.show_demo)
+            dpg.add_menu_item(label="Watch Trades", callback=self.watch_trades_callback)
+            dpg.add_menu_item(label="Exchanges", callback=self.exchange_selection, show=False, tag="exchanges_menu")
 
-    def start_watching_exchanges(self, s, a, u):
-        if not self.aggr.started:
-            self.aggr.start_thread(self, self.active_exchanges)
+        with dpg.group(parent=self.tag):
+            with dpg.group(horizontal=True, show=False):
+                # Add text widget for displaying total volume
+                self.total_volume_label = dpg.add_text("Total Volume Across All Exchanges: ")
+                self.total_volume_value = dpg.add_text("0")
+            
+            with dpg.group(tag="watch_trades"):
+                pass
+
+            with dpg.child_window(pos=(self.viewport_size[0] - 300, 24), tag="active_exchanges", show=False):
+                dpg.add_listbox([], tag="active_exchanges_listbox", show=False, width=-1, num_items=-1)
+
+    def watch_trades_callback(self):
+        if dpg.get_item_configuration("watch_trades")['show']:
+            dpg.configure_item("exchanges_menu", show=False)
+            dpg.configure_item("watch_trades", show=False)
+            dpg.configure_item("active_exchanges", show=False)
+            dpg.configure_item("active_exchanges_listbox", show=False)
         else:
-            self.aggr.trigger_update_exchanges(self.active_exchanges)
+            dpg.configure_item("exchanges_menu", show=True)
+            dpg.configure_item("watch_trades", show=True)
+            dpg.configure_item("active_exchanges", show=True)
+            dpg.configure_item("active_exchanges_listbox", show=True, items=self.active_exchanges)
 
-        self.remove_unwatched_exchanges()
-
-    def remove_unwatched_exchanges(self):
-        # Delete removed exchanges
-        for exchange_name in list(self.exchange_items.keys()):
-            if exchange_name not in self.active_exchanges:
-                dpg.delete_item(f"{self.tag}_{exchange_name}")
-                del self.exchange_items[exchange_name]
-    
     def exchange_selection(self, s, a, u):
         self.exchange_selection_tag = dpg.generate_uuid()
         with dpg.window(modal=True, popup=True, width=300, height=300, tag=self.exchange_selection_tag, on_close=lambda:dpg.delete_item(self.exchange_selection_tag)):
@@ -44,20 +57,27 @@ class Window:
                         default_value=True if exchange in self.active_exchanges else False
                     )
 
-            dpg.add_button(label="Start", callback=self.start_watching_exchanges)
+    def add_or_remove_exchange(self, sender, app_data, user_data):
+        before = self.active_exchanges.copy()
+        self.active_exchanges = [ex for ex in self.active_exchanges if ex != sender] if sender in self.active_exchanges else self.active_exchanges + [sender]
+        self.logger.info(f"Watched Exchanges - Before:{before} | After:{self.active_exchanges}")
+        dpg.configure_item("active_exchanges_listbox", items=self.active_exchanges)
+        self.update_watch()
 
-    def build(self):
-        self.logger.info("Building menu for main window.")
-        with dpg.menu_bar(parent=self.tag):
-            dpg.add_menu_item(label="Demo", callback=demo.show_demo)
-            dpg.add_menu_item(label="Exchanges", callback=self.exchange_selection)
-        
-        # Add text widget for displaying total volume
-        self.total_volume_label = dpg.add_text("Total Volume Across All Exchanges: ", parent=self.tag)
-        self.total_volume_value = dpg.add_text("0", parent=self.tag)
+    def update_watch(self):
+        if not self.aggr.started:
+            self.aggr.start_thread(self, self.active_exchanges)
+        else:
+            self.aggr.trigger_update_exchanges(self.active_exchanges)
 
-        # Separator
-        dpg.add_separator(parent=self.tag)
+        self.remove_unwatched_exchanges()
+
+    def remove_unwatched_exchanges(self):
+        # Delete removed exchanges
+        for exchange_name in list(self.exchange_items.keys()):
+            if exchange_name not in self.active_exchanges:
+                dpg.delete_item(f"{self.tag}_{exchange_name}")
+                del self.exchange_items[exchange_name]
 
     def update_aggregated_data(self, aggregated_data):
         # Update total volume value
@@ -71,10 +91,10 @@ class Window:
 
             if exchange_name not in self.exchange_items:
                 # Create new exchange item if not exists
-                with dpg.child_window(tag=f"{self.tag}_{exchange_name}", parent=self.tag, width=-1, height=105):
+                with dpg.child_window(tag=f"{self.tag}_{exchange_name}", parent="watch_trades", width=-1, height=105):
                     with dpg.group(horizontal=True):
                         dpg.add_text(f"Exchange: {exchange_name}")
-                        dpg.add_button(label="X")
+                        dpg.add_button(label="X", callback=lambda: self.add_or_remove_exchange(exchange_name, None, None))
                     with dpg.group(horizontal=True):
                         dpg.add_text("Base Volume: ")
                         base_volume_value = dpg.add_text(str(data['base_volume']))

@@ -65,18 +65,24 @@ class CryptoData:
         self.logger.info(f"{exchange_name} closed.")
 
     def trigger_update_exchanges(self, new_exchanges):
+        # This function is called when the user clicks the "Start/Refresh" button and
+        # self.started == True
+        # We schedule a task that will start or update the watched exchanges
         self.loop.call_soon_threadsafe(lambda: asyncio.create_task(self.update_exchanges_coroutine(new_exchanges)))
 
     async def update_exchanges_coroutine(self, new_exchanges):
+        # This will add a newly added exchange to the watch exchanges loop
         for exchange_name in new_exchanges:
             if exchange_name not in self.active_exchanges:
                 await self.update_exchange(exchange_name, True)
 
+        # This will remove an exchange that was previously being watched in the loop
         for exchange_name in self.active_exchanges:
             if exchange_name not in new_exchanges:
                 await self.update_exchange(exchange_name, False)
 
     async def update_exchange(self, exchange_name, active):
+        # This schedules the task by storing it in the queue, the "manage_exchanges" function will watch for changes to the queue
         await self.exchange_changes_queue.put((exchange_name, active))
 
     async def main(self):
@@ -92,6 +98,7 @@ class CryptoData:
         while True:
             exchange_name, active = await self.exchange_changes_queue.get()
 
+            # This is where we update the active exchanges we are watching
             if active:
                 if exchange_name not in self.active_exchanges:
                     coroutine = self.watch_exchange(exchange_name)
