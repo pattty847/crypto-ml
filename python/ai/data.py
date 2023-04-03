@@ -268,10 +268,30 @@ class DataCollector:
 
 # chart.plot(data['coinbasepro']['BTC/USD'])
 
-
+    async def fetch_percentage_change_vs_btc(self, exchange, symbols, timeframe, lookback_minutes, max_retries):
+        """
+        The fetch_percentage_change_vs_btc function fetches the percentage change of a symbol vs. BTC for a given timeframe and lookback period.
+        
+        :param self: Bind the method to an object
+        :param exchange: Determine which exchange to use
+        :param symbols: Specify which symbols to fetch data for
+        :param timeframe: Specify the timeframe of the data that is returned
+        :param lookback_minutes: Determine how far back in time to look for the percentage change
+        :param max_retries: Determine how many times the function will try to retrieve data from an exchange before giving up
+        :return: A list of dictionaries
+        :doc-author: Trelent
+        """
+        
+        async with getattr(ccxt, exchange)() as api:
+            available_symbols = set((await api.load_markets()).keys())
+            tasks = [self.fetch_percentage_change_vs_btc_(exchange, symbol, timeframe, lookback_minutes, max_retries) for symbol in symbols if symbol in available_symbols]
+            results = await asyncio.gather(*tasks)
+            return results
+        
     # FETCH CANDLES - RETURN PERCENTAGE GAINS
     async def fetch_percentage_change_vs_btc_(self, exchange, symbol, timeframe, lookback_minutes, max_retries):
         api = getattr(ccxt, exchange)()
+        
         if not api.has['fetchOHLCV']:
             self.logger.info(f"{exchange.upper()} does not have fetch OHLCV.")
             return None
@@ -309,27 +329,6 @@ class DataCollector:
         await api.close()
 
         return (exchange, symbol, past_candle_df.iloc[-1:], current_candle_df)  # Return only the last past candle
-
-
-    async def fetch_percentage_change_vs_btc(self, exchange, symbols, timeframe, lookback_minutes, max_retries):
-        """
-        The fetch_percentage_change_vs_btc function fetches the percentage change of a symbol vs. BTC for a given timeframe and lookback period.
-        
-        :param self: Bind the method to an object
-        :param exchange: Determine which exchange to use
-        :param symbols: Specify which symbols to fetch data for
-        :param timeframe: Specify the timeframe of the data that is returned
-        :param lookback_minutes: Determine how far back in time to look for the percentage change
-        :param max_retries: Determine how many times the function will try to retrieve data from an exchange before giving up
-        :return: A list of dictionaries
-        :doc-author: Trelent
-        """
-        
-        async with getattr(ccxt, exchange)() as api:
-            available_symbols = set((await api.load_markets()).keys())
-            tasks = [self.fetch_percentage_change_vs_btc_(exchange, symbol, timeframe, lookback_minutes, max_retries) for symbol in symbols if symbol in available_symbols]
-            results = await asyncio.gather(*tasks)
-            return results
         
     def percentage_gains(self, latest_data):
         """

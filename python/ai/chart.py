@@ -1,5 +1,6 @@
 import pandas as pd
 import plotly.graph_objects as go
+import gui
 
 def plot(df):
     # Convert 'dates' column to datetime
