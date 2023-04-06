@@ -1,10 +1,10 @@
-from gui.viewport import Viewport
+from gui.viewport import View_Port
 from gui.aggregate_window import Window
 from program import Program 
 
 if __name__ == '__main__':
     # Main entry point to program
-    with Viewport(title='Custom Title') as viewport:
+    with View_Port(title='Custom Title') as viewport:
         # window = Window('win', viewport.tag, viewport.aggr).build()
         
         # Define our Program class, passing it the viewport, and call build_ui()

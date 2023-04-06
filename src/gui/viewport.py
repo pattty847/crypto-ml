@@ -14,7 +14,7 @@ logging.basicConfig(
     ]
 )
 
-class Viewport:
+class View_Port:
     """
         This is a context manager to abstract the dearpygui setup and the main program setup.
     """

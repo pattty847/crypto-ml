@@ -1,12 +1,12 @@
 import dearpygui.dearpygui as dpg
 
-from .strategy_builder import StrategyBuilder
+from .strategy_builder import Strategy_Builder
 
 class Strategy:
     def __init__(self, parent, viewport):
         self.viewport = viewport
         self.parent = parent
-        self.strategy_builder = StrategyBuilder()
+        self.strategy_builder = Strategy_Builder()
         
         # This will be called and initialized when the user chooses a symbol and timeframe
         self.source = None

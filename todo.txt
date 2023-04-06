@@ -1,7 +1,0 @@
-Create a separate class to handle connection and trade watching for a single exchange, e.g., ExchangeWatcher. This class should have methods for starting and stopping the watching process and a callback mechanism for reporting new trades.
-
-Create a separate class for managing multiple ExchangeWatcher instances, e.g., ExchangeWatchersManager. This class should provide methods to add and remove exchanges to be watched and handle the aggregation of trade data.
-
-Modify the Window class to only handle the UI updates. It should receive updates from the ExchangeWatchersManager and update the UI accordingly.
-
-Use asyncio.run() or asyncio.run_until_complete() in your main script to start the event loop and run the entire application.

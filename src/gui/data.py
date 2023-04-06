@@ -1,16 +1,12 @@
 import json
 import os
-import pandas_ta as ta
 import ccxt.async_support as ccxt
 import pandas as pd
 import logging
 import asyncio
-import chart
-from log import setup_logging
 from typing import List
 
 class DataCollector:
-    setup_logging()
     def __init__(self, exchanges, symbols, timeframe):
         self.exchanges = exchanges
         self.symbols = symbols
