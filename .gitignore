@@ -1,6 +1,6 @@
 data
 hidden
-venv
+.venv
 python/__pycache__
 node_modules
 javascript
